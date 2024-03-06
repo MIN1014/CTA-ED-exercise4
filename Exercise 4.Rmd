@@ -1,0 +1,96 @@
+---
+title: "Exercise 4"
+author: "Min Wang"
+date: "2024-03-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load packages and import data
+
+First, load the packages and import the data.
+
+```{r}
+library(kableExtra)
+library(dplyr)
+library(quanteda) # includes functions to implement Lexicoder
+library(quanteda.textmodels) # for estimating similarity and complexity measures
+library(quanteda.textplots) #for visualizing text modelling results
+```
+
+
+```{r}
+kaneko_dfm  <- readRDS(gzcon(url("https://github.com/cjbarrie/CTA-ED/blob/main/data/wordscaling/study1_kaneko.rds?raw=true")))
+
+```
+
+
+## Estimate wordfish model
+
+Since it is already a document feature matrix, we are able to group and trim the document feature matrix before estimating the wordfish model.
+
+```{r}
+table(docvars(kaneko_dfm, "Newspaper"))
+## prepare the newspaper-level document-feature matrix
+# compress the document-feature matrix at the newspaper level
+kaneko_dfm_study1 <- dfm_group(kaneko_dfm, groups = Newspaper)
+# remove words not used by two or more newspapers
+kaneko_dfm_study1 <- dfm_trim(kaneko_dfm_study1, min_docfreq = 2, docfreq_type = "count")
+
+## size of the document-feature matrix
+dim(kaneko_dfm_study1)
+```
+
+Now the Wordfish model can be estimated, using "summary" function to see the results.
+
+```{r}
+#### estimate the Wordfish model ####
+set.seed(123L)
+kaneko_dfm_study1_results <- textmodel_wordfish(kaneko_dfm_study1, 
+                                             sparse = TRUE)
+
+summary(kaneko_dfm_study1_results)
+```
+
+
+## Visualize the results
+
+We can then plot our estimates of the $\theta$s.
+
+```{r}
+textplot_scale1d(kaneko_dfm_study1_results)
+```
+
+Plotting the "features".
+
+```{r}
+textplot_scale1d(kaneko_dfm_study1_results, margin = "features")
+```
+
+we can also look at these features.
+
+```{r}
+# extract "features" from a data structure("kaneko_dfm_study1_results") and assigns its contents to a new variable named "features1"
+features1 <- kaneko_dfm_study1_results[["features"]]
+
+# the same process as "features1"
+betas1 <- kaneko_dfm_study1_results[["beta"]]
+
+# merge "features1" and "betas1" into a new data frame called feat_betas1
+feat_betas1 <- as.data.frame(cbind(features1, betas1))
+
+# set the type of "betas1" to numeric
+feat_betas1$betas1 <- as.numeric(feat_betas1$betas1)
+
+
+feat_betas1 %>%
+  arrange(desc(betas1)) %>%  # sort by the value of "betas1" in descending order
+  top_n(20) %>%  # select the first 20 rows after sorting
+  kbl() %>%   # change data frame to a table
+  kable_styling(bootstrap_options = "striped") # adds a stripe style that alternates the background color of consecutive rows
+```
+
+
